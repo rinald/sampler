@@ -113,4 +113,3 @@ export default function SampleWaveform({ audioBuffer, height = 80, className }: 
 
   return <canvas ref={canvasRef} className={cn("w-full", className)} style={{ height: `${height}px` }} />
 }
-

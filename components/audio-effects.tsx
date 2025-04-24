@@ -15,14 +15,16 @@ interface AudioEffectsProps {
   audioContext: MutableRefObject<AudioContext | null>
 }
 
-export default function AudioEffects({ audioBuffer, setAudioBuffer, audioContext }: AudioEffectsProps) {
+export default function AudioEffects({
+  audioBuffer,
+  setAudioBuffer,
+  audioContext,
+}: AudioEffectsProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
   // Effect parameters
   const [gain, setGain] = useState(1)
-  const [reverb, setReverb] = useState(0)
-  const [delay, setDelay] = useState(0)
   const [pitch, setPitch] = useState(1)
   const [lowPass, setLowPass] = useState(20000)
   const [highPass, setHighPass] = useState(20)
@@ -46,7 +48,7 @@ export default function AudioEffects({ audioBuffer, setAudioBuffer, audioContext
       try {
         audioSource.current.stop()
       } catch (e) {
-        // Ignore errors from already stopped sources
+        console.log(e)
       }
       audioSource.current = null
     }
@@ -96,7 +98,7 @@ export default function AudioEffects({ audioBuffer, setAudioBuffer, audioContext
       const offlineContext = new OfflineAudioContext(
         audioBuffer.numberOfChannels,
         audioBuffer.length,
-        audioBuffer.sampleRate,
+        audioBuffer.sampleRate
       )
 
       // Create source
@@ -151,8 +153,6 @@ export default function AudioEffects({ audioBuffer, setAudioBuffer, audioContext
   // Reset effects to default values
   const resetEffects = () => {
     setGain(1)
-    setReverb(0)
-    setDelay(0)
     setPitch(1)
     setLowPass(20000)
     setHighPass(20)
@@ -162,11 +162,23 @@ export default function AudioEffects({ audioBuffer, setAudioBuffer, audioContext
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button variant={isPlaying ? "destructive" : "default"} onClick={playWithEffects} disabled={isProcessing}>
-            {isPlaying ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+          <Button
+            variant={isPlaying ? "destructive" : "default"}
+            onClick={playWithEffects}
+            disabled={isProcessing}
+          >
+            {isPlaying ? (
+              <Pause className="h-4 w-4 mr-2" />
+            ) : (
+              <Play className="h-4 w-4 mr-2" />
+            )}
             {isPlaying ? "Stop" : "Preview"}
           </Button>
-          <Button variant="outline" onClick={resetEffects} disabled={isProcessing}>
+          <Button
+            variant="outline"
+            onClick={resetEffects}
+            disabled={isProcessing}
+          >
             <RotateCcw className="h-4 w-4 mr-2" />
             Reset
           </Button>
@@ -195,7 +207,13 @@ export default function AudioEffects({ audioBuffer, setAudioBuffer, audioContext
                     <Label>Gain</Label>
                     <span className="text-sm">{gain.toFixed(2)}x</span>
                   </div>
-                  <Slider min={0} max={2} step={0.01} value={[gain]} onValueChange={(value) => setGain(value[0])} />
+                  <Slider
+                    min={0}
+                    max={2}
+                    step={0.01}
+                    value={[gain]}
+                    onValueChange={(value) => setGain(value[0])}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -210,9 +228,16 @@ export default function AudioEffects({ audioBuffer, setAudioBuffer, audioContext
                     <Label>Pitch Shift</Label>
                     <span className="text-sm">{pitch.toFixed(2)}x</span>
                   </div>
-                  <Slider min={0.5} max={2} step={0.01} value={[pitch]} onValueChange={(value) => setPitch(value[0])} />
+                  <Slider
+                    min={0.5}
+                    max={2}
+                    step={0.01}
+                    value={[pitch]}
+                    onValueChange={(value) => setPitch(value[0])}
+                  />
                   <p className="text-xs text-muted-foreground mt-2">
-                    Note: Pitch shifting is a preview feature and may not be applied in the final render
+                    Note: Pitch shifting is a preview feature and may not be
+                    applied in the final render
                   </p>
                 </div>
               </CardContent>
@@ -240,7 +265,9 @@ export default function AudioEffects({ audioBuffer, setAudioBuffer, audioContext
                       value={[lowPass]}
                       onValueChange={(value) => setLowPass(value[0])}
                     />
-                    <p className="text-xs text-muted-foreground">Removes frequencies above the cutoff</p>
+                    <p className="text-xs text-muted-foreground">
+                      Removes frequencies above the cutoff
+                    </p>
                   </div>
 
                   <div className="grid gap-2">
@@ -255,7 +282,9 @@ export default function AudioEffects({ audioBuffer, setAudioBuffer, audioContext
                       value={[highPass]}
                       onValueChange={(value) => setHighPass(value[0])}
                     />
-                    <p className="text-xs text-muted-foreground">Removes frequencies below the cutoff</p>
+                    <p className="text-xs text-muted-foreground">
+                      Removes frequencies below the cutoff
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -266,4 +295,3 @@ export default function AudioEffects({ audioBuffer, setAudioBuffer, audioContext
     </div>
   )
 }
-
