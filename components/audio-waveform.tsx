@@ -146,17 +146,19 @@ export default function AudioWaveform({
     ctx.stroke()
 
     // Draw time markers
-    const timeStep = zoomLevel <= 1 ? 1 : 0.5 // Adjust time step based on zoom
+    const timeStep = 0.5
     ctx.fillStyle = "#9ca3af"
     ctx.font = "10px sans-serif"
 
-    for (let t = Math.ceil(startTime); t <= endTime; t += timeStep) {
-      const x = timeToX(t, width)
-      ctx.beginPath()
-      ctx.moveTo(x, height - 10)
-      ctx.lineTo(x, height)
-      ctx.stroke()
-      ctx.fillText(`${t}s`, x + 2, height - 2)
+    if (zoomLevel > 3) {
+      for (let t = Math.ceil(startTime); t <= endTime; t += timeStep) {
+        const x = timeToX(t, width)
+        ctx.beginPath()
+        ctx.moveTo(x, height - 10)
+        ctx.lineTo(x, height)
+        ctx.stroke()
+        ctx.fillText(`${t}s`, x + 2, height - 2)
+      }
     }
 
     // Draw the waveform with improved rendering
@@ -252,6 +254,7 @@ export default function AudioWaveform({
     zoomLevel,
     zoomCenter,
     timeToX,
+    isDragging,
   ])
 
   // Force initial draw when component mounts
