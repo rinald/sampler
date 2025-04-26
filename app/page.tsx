@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -20,7 +18,6 @@ import {
   SkipBack,
   SkipForward,
   Scissors,
-  Save,
   Upload,
   Volume2,
   VolumeX,
@@ -32,8 +29,12 @@ import { Label } from "@/components/ui/label"
 import AudioWaveform from "@/components/audio-waveform"
 import StudioWorkspace from "@/components/studio-workspace"
 import { useToast } from "@/hooks/use-toast"
+import useStudioStore from "@/stores/studio"
 
 export default function AudioSampler() {
+  const samples = useStudioStore((state) => state.samples)
+  const setSamples = useStudioStore((state) => state.setSamples)
+
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [volume, setVolume] = useState(0.8)
@@ -43,9 +44,7 @@ export default function AudioSampler() {
   const [selectedRegion, setSelectedRegion] = useState<[number, number] | null>(
     null
   )
-  const [samples, setSamples] = useState<
-    { id: string; buffer: AudioBuffer; name: string }[]
-  >([])
+
   const [repeatSelection, setRepeatSelection] = useState(false)
   const [respectSelection, setRespectSelection] = useState(true)
   const [selectionJustCreated, setSelectionJustCreated] = useState(false)
@@ -488,8 +487,6 @@ export default function AudioSampler() {
 
               <TabsContent value="studio">
                 <StudioWorkspace
-                  samples={samples}
-                  setSamples={setSamples}
                   audioContext={audioContext}
                   gainNode={gainNode}
                 />
@@ -511,21 +508,6 @@ export default function AudioSampler() {
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Clear Audio
-          </Button>
-
-          <Button
-            disabled={!audioBuffer}
-            onClick={() => {
-              // Export functionality would go here
-              toast({
-                title: "Export not implemented",
-                description:
-                  "This would export your audio in a real application",
-              })
-            }}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Export
           </Button>
         </CardFooter>
       </Card>

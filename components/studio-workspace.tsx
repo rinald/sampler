@@ -1,10 +1,8 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useRef, type MutableRefObject, useEffect } from "react"
+import { useState, useRef, type RefObject, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -14,37 +12,15 @@ import {
   Plus,
   Edit,
   Trash2,
-  Repeat,
-  Volume2,
   Settings,
-  MoveHorizontal,
-  Music,
   AudioWaveformIcon as Waveform,
   Layers,
-  Clock,
   Download,
   Move,
-  Waves,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useToast } from "@/hooks/use-toast"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
+
 import SampleWaveform from "@/components/sample-waveform"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -60,50 +36,31 @@ import {
   audioBufferToFlac,
   downloadBlob,
 } from "@/utils/audio-export"
+import { useToast } from "@/hooks/use-toast"
 
-interface Sample {
-  id: string
-  buffer: AudioBuffer
-  name: string
+import type { CompositionTrack, Sample } from "@/types/studio"
+import useStudioStore from "@/stores/studio"
+
+import RenameSampleDialog from "./dialogs/RenameSample"
+import EditTrackDialog from "./dialogs/EditTrack"
+
+type Props = {
+  audioContext: RefObject<AudioContext | null>
+  gainNode: RefObject<GainNode | null>
 }
 
-// Update the CompositionTrack interface to include our new effects
-interface CompositionTrack {
-  id: string
-  sampleId: string
-  startTime: number
-  repetitions: number
-  volume: number
-  // Replace playbackRate with semitone-based pitch
-  pitchSemitones: number
-  reverbAmount: number
-  // Add delay effect
-  delayTime: number
-  delayFeedback: number
-}
+export default function StudioWorkspace({ audioContext, gainNode }: Props) {
+  const samples = useStudioStore((state) => state.samples)
+  const setSamples = useStudioStore((state) => state.setSamples)
+  const setCurrentSample = useStudioStore((state) => state.setCurrentSample)
+  const tracks = useStudioStore((state) => state.tracks)
+  const setTracks = useStudioStore((state) => state.setTracks)
+  const setCurrentTrack = useStudioStore((state) => state.setCurrentTrack)
 
-interface StudioWorkspaceProps {
-  samples: Sample[]
-  setSamples: (samples: Sample[]) => void
-  audioContext: MutableRefObject<AudioContext | null>
-  gainNode: MutableRefObject<GainNode | null>
-}
-
-export default function StudioWorkspace({
-  samples,
-  setSamples,
-  audioContext,
-  gainNode,
-}: StudioWorkspaceProps) {
-  const [tracks, setTracks] = useState<CompositionTrack[]>([])
   const [isPlaying, setIsPlaying] = useState(false)
-  const [editingSample, setEditingSample] = useState<Sample | null>(null)
-  const [newSampleName, setNewSampleName] = useState("")
   const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null)
   const [compositionDuration, setCompositionDuration] = useState(0)
-  const [editingTrack, setEditingTrack] = useState<CompositionTrack | null>(
-    null
-  )
+
   const [currentTime, setCurrentTime] = useState(0)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [activeTab, setActiveTab] = useState("library")
@@ -672,26 +629,6 @@ export default function StudioWorkspace({
     })
   }
 
-  // Save edited sample name
-  const saveSampleName = () => {
-    if (!editingSample || !newSampleName.trim()) return
-
-    const updatedSamples = samples.map((sample) =>
-      sample.id === editingSample.id
-        ? { ...sample, name: newSampleName.trim() }
-        : sample
-    )
-
-    setSamples(updatedSamples)
-    setEditingSample(null)
-    setNewSampleName("")
-
-    toast({
-      title: "Sample renamed",
-      description: `Sample renamed to "${newSampleName.trim()}"`,
-    })
-  }
-
   // Format time in seconds to MM:SS format
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60)
@@ -699,14 +636,9 @@ export default function StudioWorkspace({
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`
   }
 
-  // Handle track position change
-  const handleTrackPositionChange = (trackId: string, newPosition: number) => {
-    updateTrack(trackId, { startTime: Math.max(0, newPosition) })
-  }
-
   // Open track editor
   const openTrackEditor = (track: CompositionTrack) => {
-    setEditingTrack(track)
+    setCurrentTrack(track)
   }
 
   // Get sample color based on its index
@@ -971,12 +903,6 @@ export default function StudioWorkspace({
     }
   }, [])
 
-  // Format semitones for display
-  const formatSemitones = (semitones: number): string => {
-    if (semitones === 0) return "0"
-    return semitones > 0 ? `+${semitones}` : `${semitones}`
-  }
-
   return (
     <div className="grid gap-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -988,10 +914,6 @@ export default function StudioWorkspace({
           <TabsTrigger value="timeline">
             <Waveform className="h-4 w-4 mr-2" />
             Timeline
-          </TabsTrigger>
-          <TabsTrigger value="effects">
-            <Music className="h-4 w-4 mr-2" />
-            Effects
           </TabsTrigger>
         </TabsList>
 
@@ -1047,8 +969,7 @@ export default function StudioWorkspace({
                             variant="ghost"
                             size="icon"
                             onClick={() => {
-                              setEditingSample(sample)
-                              setNewSampleName(sample.name)
+                              setCurrentSample(sample)
                             }}
                           >
                             <Edit className="h-4 w-4" />
@@ -1368,434 +1289,13 @@ export default function StudioWorkspace({
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="effects" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Track Effects</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {tracks.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground">
-                  <p>No tracks to apply effects to</p>
-                  <p className="text-sm mt-2">
-                    Add samples to your composition first
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
-                  {tracks.map((track) => {
-                    const sample = samples.find((s) => s.id === track.sampleId)
-                    if (!sample) return null
-
-                    return (
-                      <div key={track.id} className="border rounded-md p-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-2">
-                            <div className="font-medium">{sample.name}</div>
-                            {hasEffects(track) && (
-                              <Badge variant="secondary" className="text-xs">
-                                Effects Applied
-                              </Badge>
-                            )}
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openTrackEditor(track)}
-                          >
-                            <Settings className="h-4 w-4 mr-2" />
-                            Edit Track
-                          </Button>
-                        </div>
-
-                        <div className="grid gap-6">
-                          <div>
-                            <Label className="mb-2 block">Volume</Label>
-                            <div className="flex items-center gap-4">
-                              <Volume2 className="h-4 w-4 text-muted-foreground" />
-                              <Slider
-                                min={0}
-                                max={1}
-                                step={0.01}
-                                value={[track.volume]}
-                                onValueChange={(value) =>
-                                  updateTrack(track.id, { volume: value[0] })
-                                }
-                              />
-                              <span className="text-sm w-12 text-right">
-                                {Math.round(track.volume * 100)}%
-                              </span>
-                            </div>
-                          </div>
-
-                          <Separator />
-
-                          <div>
-                            <Label className="mb-2 block">
-                              Pitch (Semitones)
-                            </Label>
-                            <div className="flex items-center gap-4">
-                              <Music className="h-4 w-4 text-muted-foreground" />
-                              <Slider
-                                min={-12}
-                                max={12}
-                                step={1}
-                                value={[track.pitchSemitones]}
-                                onValueChange={(value) =>
-                                  updateTrack(track.id, {
-                                    pitchSemitones: value[0],
-                                  })
-                                }
-                              />
-                              <span className="text-sm w-12 text-right">
-                                {formatSemitones(track.pitchSemitones)}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div>
-                            <Label className="mb-2 block">Reverb</Label>
-                            <div className="flex items-center gap-4">
-                              <Waves className="h-4 w-4 text-muted-foreground" />
-                              <Slider
-                                min={0}
-                                max={1}
-                                step={0.05}
-                                value={[track.reverbAmount]}
-                                onValueChange={(value) =>
-                                  updateTrack(track.id, {
-                                    reverbAmount: value[0],
-                                  })
-                                }
-                              />
-                              <span className="text-sm w-12 text-right">
-                                {Math.round(track.reverbAmount * 100)}%
-                              </span>
-                            </div>
-                          </div>
-
-                          <div>
-                            <Label className="mb-2 block">Delay</Label>
-                            <div className="grid gap-4">
-                              <div className="flex items-center gap-4">
-                                <Clock className="h-4 w-4 text-muted-foreground" />
-                                <div className="flex-1">
-                                  <Label className="text-xs mb-1 block">
-                                    Time
-                                  </Label>
-                                  <Slider
-                                    min={0}
-                                    max={1}
-                                    step={0.05}
-                                    value={[track.delayTime]}
-                                    onValueChange={(value) =>
-                                      updateTrack(track.id, {
-                                        delayTime: value[0],
-                                      })
-                                    }
-                                  />
-                                </div>
-                                <span className="text-sm w-12 text-right">
-                                  {track.delayTime.toFixed(2)}s
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-4">
-                                <div className="w-4" />{" "}
-                                {/* Spacer for alignment */}
-                                <div className="flex-1">
-                                  <Label className="text-xs mb-1 block">
-                                    Feedback
-                                  </Label>
-                                  <Slider
-                                    min={0}
-                                    max={0.9}
-                                    step={0.05}
-                                    value={[track.delayFeedback]}
-                                    onValueChange={(value) =>
-                                      updateTrack(track.id, {
-                                        delayFeedback: value[0],
-                                      })
-                                    }
-                                    disabled={track.delayTime === 0}
-                                  />
-                                </div>
-                                <span className="text-sm w-12 text-right">
-                                  {Math.round(track.delayFeedback * 100)}%
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <Separator />
-
-                          <div>
-                            <Label className="mb-2 block">Start Time</Label>
-                            <div className="flex items-center gap-4">
-                              <MoveHorizontal className="h-4 w-4 text-muted-foreground" />
-                              <Input
-                                type="number"
-                                min={0}
-                                step={0.1}
-                                value={track.startTime}
-                                onChange={(e) =>
-                                  handleTrackPositionChange(
-                                    track.id,
-                                    Number.parseFloat(e.target.value) || 0
-                                  )
-                                }
-                              />
-                              <span className="text-sm">seconds</span>
-                            </div>
-                          </div>
-
-                          <div>
-                            <Label className="mb-2 block">Repetitions</Label>
-                            <div className="flex items-center gap-4">
-                              <Repeat className="h-4 w-4 text-muted-foreground" />
-                              <Select
-                                value={track.repetitions.toString()}
-                                onValueChange={(value) =>
-                                  updateTrack(track.id, {
-                                    repetitions: Number.parseInt(value),
-                                  })
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select repetitions" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-                                    <SelectItem
-                                      key={num}
-                                      value={num.toString()}
-                                    >
-                                      {num}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Edit Sample Name Dialog */}
-      <Dialog
-        open={!!editingSample}
-        onOpenChange={(open) => !open && setEditingSample(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Sample Name</DialogTitle>
-            <DialogDescription>
-              Change the name of your audio sample
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="sample-name">Name</Label>
-              <Input
-                id="sample-name"
-                value={newSampleName}
-                onChange={(e) => setNewSampleName(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingSample(null)}>
-              Cancel
-            </Button>
-            <Button onClick={saveSampleName}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RenameSampleDialog />
 
       {/* Edit Track Dialog */}
-      <Dialog
-        open={!!editingTrack}
-        onOpenChange={(open) => !open && setEditingTrack(null)}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Track</DialogTitle>
-            <DialogDescription>
-              Adjust track settings and effects
-            </DialogDescription>
-          </DialogHeader>
-          {editingTrack && (
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="track-start">Start Time (seconds)</Label>
-                <Input
-                  id="track-start"
-                  type="number"
-                  min={0}
-                  step={0.1}
-                  value={editingTrack.startTime}
-                  onChange={(e) =>
-                    setEditingTrack({
-                      ...editingTrack,
-                      startTime: Number.parseFloat(e.target.value) || 0,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="track-repetitions">Repetitions</Label>
-                <Select
-                  value={editingTrack.repetitions.toString()}
-                  onValueChange={(value) =>
-                    setEditingTrack({
-                      ...editingTrack,
-                      repetitions: Number.parseInt(value),
-                    })
-                  }
-                >
-                  <SelectTrigger id="track-repetitions">
-                    <SelectValue placeholder="Select repetitions" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-                      <SelectItem key={num} value={num.toString()}>
-                        {num}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="track-volume">Volume</Label>
-                <Slider
-                  id="track-volume"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={[editingTrack.volume]}
-                  onValueChange={(value) =>
-                    setEditingTrack({
-                      ...editingTrack,
-                      volume: value[0],
-                    })
-                  }
-                />
-                <div className="text-right text-sm text-muted-foreground">
-                  {Math.round(editingTrack.volume * 100)}%
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="grid gap-2">
-                <Label htmlFor="track-pitch">Pitch (Semitones)</Label>
-                <Slider
-                  id="track-pitch"
-                  min={-12}
-                  max={12}
-                  step={1}
-                  value={[editingTrack.pitchSemitones]}
-                  onValueChange={(value) =>
-                    setEditingTrack({
-                      ...editingTrack,
-                      pitchSemitones: value[0],
-                    })
-                  }
-                />
-                <div className="text-right text-sm text-muted-foreground">
-                  {formatSemitones(editingTrack.pitchSemitones)}
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="track-reverb">Reverb</Label>
-                <Slider
-                  id="track-reverb"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={[editingTrack.reverbAmount]}
-                  onValueChange={(value) =>
-                    setEditingTrack({
-                      ...editingTrack,
-                      reverbAmount: value[0],
-                    })
-                  }
-                />
-                <div className="text-right text-sm text-muted-foreground">
-                  {Math.round(editingTrack.reverbAmount * 100)}%
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="track-delay-time">Delay Time</Label>
-                <Slider
-                  id="track-delay-time"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={[editingTrack.delayTime]}
-                  onValueChange={(value) =>
-                    setEditingTrack({
-                      ...editingTrack,
-                      delayTime: value[0],
-                    })
-                  }
-                />
-                <div className="text-right text-sm text-muted-foreground">
-                  {editingTrack.delayTime.toFixed(2)}s
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="track-delay-feedback">Delay Feedback</Label>
-                <Slider
-                  id="track-delay-feedback"
-                  min={0}
-                  max={0.9}
-                  step={0.05}
-                  value={[editingTrack.delayFeedback]}
-                  onValueChange={(value) =>
-                    setEditingTrack({
-                      ...editingTrack,
-                      delayFeedback: value[0],
-                    })
-                  }
-                  disabled={editingTrack.delayTime === 0}
-                />
-                <div className="text-right text-sm text-muted-foreground">
-                  {Math.round(editingTrack.delayFeedback * 100)}%
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingTrack(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (editingTrack) {
-                  updateTrack(editingTrack.id, editingTrack)
-                  setEditingTrack(null)
-                }
-              }}
-            >
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EditTrackDialog />
       <ExportDialog
         open={exportDialogOpen}
         onOpenChange={setExportDialogOpen}
