@@ -30,12 +30,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { ExportDialog, type ExportFormat } from "@/components/export-dialog"
-import {
-  audioBufferToWav,
-  audioBufferToMp3,
-  audioBufferToFlac,
-  downloadBlob,
-} from "@/utils/audio-export"
+import { audioBufferToWav, downloadBlob } from "@/utils/audio-export"
 import { useToast } from "@/hooks/use-toast"
 
 import type { CompositionTrack, Sample } from "@/types/studio"
@@ -735,24 +730,8 @@ export default function StudioWorkspace({ audioContext, gainNode }: Props) {
     const renderedBuffer = await offlineContext.startRendering()
 
     // Convert to the selected format
-    let blob: Blob
-    let extension: string
-
-    switch (format) {
-      case "mp3":
-        blob = await audioBufferToMp3(renderedBuffer, quality)
-        extension = "mp3"
-        break
-      case "flac":
-        blob = await audioBufferToFlac(renderedBuffer, quality)
-        extension = "flac"
-        break
-      case "wav":
-      default:
-        blob = audioBufferToWav(renderedBuffer, quality)
-        extension = "wav"
-        break
-    }
+    const blob = audioBufferToWav(renderedBuffer, quality)
+    const extension = "wav"
 
     // Generate a filename
     const timestamp = new Date()
@@ -936,9 +915,7 @@ export default function StudioWorkspace({ audioContext, gainNode }: Props) {
                     <div
                       key={sample.id}
                       className={`flex flex-col p-3 rounded-md border ${
-                        selectedSampleId === sample.id
-                          ? "ring-2 ring-primary"
-                          : ""
+                        selectedSampleId === sample.id ? "bg-blue-50" : ""
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -1056,6 +1033,18 @@ export default function StudioWorkspace({ audioContext, gainNode }: Props) {
                       <Download className="h-4 w-4 mr-2" />
                       Export
                     </Button>
+
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setTimelineOffset(0)
+                        setZoomLevel(1)
+                      }}
+                      className="ml-2"
+                      title="Reset view"
+                    >
+                      Reset View
+                    </Button>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1071,18 +1060,6 @@ export default function StudioWorkspace({ audioContext, gainNode }: Props) {
                     />
                   </div>
                 </div>
-
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setTimelineOffset(0)
-                    setZoomLevel(1)
-                  }}
-                  className="ml-2"
-                  title="Reset view"
-                >
-                  Reset View
-                </Button>
 
                 {tracks.length === 0 ? (
                   <div className="text-center py-6 text-muted-foreground">
